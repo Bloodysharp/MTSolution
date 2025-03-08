@@ -1,84 +1,91 @@
 {
   "hosts": {
     "host1": {
-      "cpu": 48,
-      "ram": 1024
+      "cpu": 32,
+      "ram": 512
     },
     "host2": {
-      "cpu": 64,
-      "ram": 1536
+      "cpu": 48,
+      "ram": 768
     },
     "host3": {
-      "cpu": 128,
-      "ram": 2048
+      "cpu": 64,
+      "ram": 1024
     }
   },
   "virtual_machines": {
     "vm1": {
-      "cpu": 2,
-      "ram": 4
+      "cpu": 3,
+      "ram": 28
     },
     "vm2": {
-      "cpu": 3,
-      "ram": 7
+      "cpu": 2,
+      "ram": 14
     },
     "vm3": {
-      "cpu": 10,
-      "ram": 16
+      "cpu": 4,
+      "ram": 56
     },
     "vm4": {
-      "cpu": 20,
-      "ram": 32
+      "cpu": 4,
+      "ram": 74
     },
     "vm5": {
-      "cpu": 8,
-      "ram": 16
+      "cpu": 12,
+      "ram": 120
     },
     "vm6": {
-      "cpu": 16,
-      "ram": 64
+      "cpu": 8,
+      "ram": 60
     },
     "vm7": {
-      "cpu": 4,
-      "ram": 8
+      "cpu": 6,
+      "ram": 120
     },
     "vm8": {
-      "cpu": 12,
-      "ram": 24
+      "cpu": 8,
+      "ram": 110
     },
     "vm9": {
-      "cpu": 32,
-      "ram": 128
+      "cpu": 12,
+      "ram": 50
     },
     "vm10": {
-      "cpu": 6,
-      "ram": 12
+      "cpu": 12,
+      "ram": 64
     },
     "vm11": {
-      "cpu": 2,
-      "ram": 4
+      "cpu": 10,
+      "ram": 52
     },
     "vm12": {
-      "cpu": 3,
-      "ram": 7
+      "cpu": 6,
+      "ram": 112
     },
     "vm13": {
-      "cpu": 10,
-      "ram": 16
+      "cpu": 2,
+      "ram": 64
     },
     "vm14": {
-      "cpu": 20,
-      "ram": 32
+      "cpu": 4,
+      "ram": 128
     },
     "vm15": {
-      "cpu": 8,
-      "ram": 16
+      "cpu": 3,
+      "ram": 80
+    },
+    "vm16": {
+      "cpu": 12,
+      "ram": 100
+    },
+    "vm17": {
+      "cpu": 12,
+      "ram": 180
+    },
+    "vm18": {
+      "cpu": 4,
+      "ram": 120
     }
-  },
-  "diff": {
-    "add": {
-      "virtual_machines": [ "vm16" ]
-    }
+
   }
 }
-

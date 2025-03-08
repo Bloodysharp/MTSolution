@@ -2,37 +2,40 @@
   "allocations": {
     "host1": [
       "vm1",
-      "vm4",
-      "vm11",
-      "vm12",
-      "vm14"
+      "vm6",
+      "vm9",
+      "vm15",
+      "vm18"
     ],
     "host2": [
       "vm2",
-      "vm5",
+      "vm4",
       "vm7",
-      "vm8",
       "vm10",
-      "vm13",
-      "vm15"
+      "vm12",
+      "vm16"
     ],
     "host3": [
       "vm3",
-      "vm6",
-      "vm9"
+      "vm5",
+      "vm8",
+      "vm11",
+      "vm13",
+      "vm14",
+      "vm17"
     ]
   },
   "allocation_failures": [],
   "migrations": {},
   "host_utilizations": {
     "host1": {
-      "usage_percentage": 11.753731343283583
+      "usage_percentage": 79.8828125
     },
     "host2": {
-      "usage_percentage": 9.375
+      "usage_percentage": 75.26041666666667
     },
     "host3": {
-      "usage_percentage": 12.224264705882353
+      "usage_percentage": 75.29296875
     }
   }
 }
