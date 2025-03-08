@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "MTSolution": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}
