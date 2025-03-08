@@ -1,32 +1,68 @@
-﻿
+﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Newtonsoft.Json;
-using System.Xml;
 
 class Program
 {
     static void Main()
     {
-        string input = Console.In.ReadToEnd().Trim();
+        // Чтение данных из input.json
+        string input = File.ReadAllText("input.json").Trim();
         var request = JsonConvert.DeserializeObject<InputData>(input);
         var response = new OutputData();
-        var vmPlacement = new Dictionary<string, string>();
-        var migrations = new List<Migration>();
+        var vmPlacement = new Dictionary<string, List<string>>(); // Изменено для хранения списка ВМ на хостах
+        var migrations = new Dictionary<string, Migration>(); // Изменено для отслеживания миграций
 
         var hostUsage = request.Hosts.ToDictionary(h => h.Key, h => new Resource(h.Value.Cpu, h.Value.Ram));
 
+        // Проверка утилизации хостов перед добавлением новой ВМ
+        bool canAddVm = hostUsage.All(h => h.Value.TotalUsage >= 0.75 && h.Value.TotalUsage <= 0.81);
+
+        if (canAddVm && request.Diff?.Add?.VirtualMachines?.Count > 0)
+        {
+            // Добавление новых виртуальных машин
+            foreach (var vmKey in request.Diff.Add.VirtualMachines)
+            {
+                var newVm = new Resource(4, 8); // Примерная ВМ, можно модифицировать
+                bool placed = false;
+
+                foreach (var host in hostUsage.OrderBy(h => h.Value.TotalUsage))
+                {
+                    if (host.Value.CanHost(newVm) && host.Value.TotalUsage < 0.81)
+                    {
+                        host.Value.Allocate(newVm);
+                        if (!vmPlacement.ContainsKey(host.Key))
+                        {
+                            vmPlacement[host.Key] = new List<string>();
+                        }
+                        vmPlacement[host.Key].Add(vmKey);
+                        placed = true;
+                        break;
+                    }
+                }
+                if (!placed)
+                {
+                    response.FailedPlacements.Add(vmKey);
+                }
+            }
+        }
+
+        // Первоначальное распределение ВМ по хостам
         foreach (var vm in request.VirtualMachines)
         {
             bool placed = false;
-            foreach (var host in hostUsage.OrderBy(h => h.Value.CpuUsage))
+            foreach (var host in hostUsage.OrderBy(h => h.Value.TotalUsage)) // Используется общий расход ресурсов
             {
-                if (host.Value.CanHost(vm.Value))
+                if (host.Value.CanHost(vm.Value) && host.Value.TotalUsage < 0.81) // Проверка общей утилизации
                 {
                     host.Value.Allocate(vm.Value);
-                    vmPlacement[vm.Key] = host.Key;
+                    if (!vmPlacement.ContainsKey(host.Key))
+                    {
+                        vmPlacement[host.Key] = new List<string>();
+                    }
+                    vmPlacement[host.Key].Add(vm.Key);
                     placed = true;
                     break;
                 }
@@ -37,32 +73,43 @@ class Program
             }
         }
 
-        // Миграция ВМ при перегрузке хоста
-        foreach (var host in hostUsage)
+        // Проверка на хосты с утилизацией выше 81% и перераспределение ВМ
+        var overUtilizedHosts = hostUsage.Where(h => h.Value.TotalUsage > 0.81).ToList();
+        foreach (var host in overUtilizedHosts)
         {
-            if (host.Value.CpuUsage > 0.8)
+            var vmsToMigrate = vmPlacement.Where(v => v.Value.Contains(host.Key)).ToList();
+            foreach (var vm in vmsToMigrate)
             {
-                var vmsToMigrate = vmPlacement.Where(v => v.Value == host.Key).ToList();
-                foreach (var vm in vmsToMigrate)
+                foreach (var targetHost in hostUsage.OrderBy(h => h.Value.TotalUsage))
                 {
-                    foreach (var targetHost in hostUsage.OrderBy(h => h.Value.CpuUsage))
+                    if (targetHost.Key != host.Key && targetHost.Value.CanHost(request.VirtualMachines[vm.Key]) && targetHost.Value.TotalUsage < 0.81)
                     {
-                        if (targetHost.Key != host.Key && targetHost.Value.CanHost(request.VirtualMachines[vm.Key]))
+                        host.Value.Deallocate(request.VirtualMachines[vm.Key]);
+                        targetHost.Value.Allocate(request.VirtualMachines[vm.Key]);
+                        vmPlacement[host.Key].Remove(vm.Key);
+                        if (!vmPlacement.ContainsKey(targetHost.Key))
                         {
-                            host.Value.Deallocate(request.VirtualMachines[vm.Key]);
-                            targetHost.Value.Allocate(request.VirtualMachines[vm.Key]);
-                            vmPlacement[vm.Key] = targetHost.Key;
-                            migrations.Add(new Migration { Vm = vm.Key, From = host.Key, To = targetHost.Key });
-                            break;
+                            vmPlacement[targetHost.Key] = new List<string>();
                         }
+                        vmPlacement[targetHost.Key].Add(vm.Key);
+                        migrations[vm.Key] = new Migration { Vm = vm.Key, From = host.Key, To = targetHost.Key };
+                        break;
                     }
                 }
             }
         }
 
-        response.Placements = vmPlacement;
+        // Добавление информации о утилизации в output
+        response.Allocations = vmPlacement;
         response.Migrations = migrations;
-        Console.WriteLine(JsonConvert.SerializeObject(response, new JsonSerializerSettings { Formatting = Newtonsoft.Json.Formatting.Indented }));
+        response.HostUtilizations = hostUsage.ToDictionary(h => h.Key, h => new HostUtilization
+        {
+            UsagePercentage = h.Value.TotalUsage * 100 // Используется общий процент
+        });
+
+        // Сериализация и запись в файл
+        string output = JsonConvert.SerializeObject(response, new JsonSerializerSettings { Formatting = Formatting.Indented });
+        File.WriteAllText("output.json", output);
     }
 }
 
@@ -85,9 +132,15 @@ class DiffAdd
 
 class OutputData
 {
-    [JsonProperty("placements")] public Dictionary<string, string> Placements { get; set; } = new();
-    [JsonProperty("failed_placements")] public List<string> FailedPlacements { get; set; } = new();
-    [JsonProperty("migrations")] public List<Migration> Migrations { get; set; } = new();
+    [JsonProperty("allocations")] public Dictionary<string, List<string>> Allocations { get; set; } = new();
+    [JsonProperty("allocation_failures")] public List<string> FailedPlacements { get; set; } = new();
+    [JsonProperty("migrations")] public Dictionary<string, Migration> Migrations { get; set; } = new();
+    [JsonProperty("host_utilizations")] public Dictionary<string, HostUtilization> HostUtilizations { get; set; } = new();
+}
+
+class HostUtilization
+{
+    [JsonProperty("usage_percentage")] public double UsagePercentage { get; set; }
 }
 
 class Migration
@@ -123,5 +176,6 @@ class Resource
         CpuUsed -= vm.Cpu;
         RamUsed -= vm.Ram;
     }
-    public double CpuUsage => (double)CpuUsed / Cpu;
+    // Рассчитывается как сумма использования CPU и RAM относительно их общей вместимости
+    public double TotalUsage => (double)(CpuUsed + RamUsed) / (Cpu + Ram);
 }
