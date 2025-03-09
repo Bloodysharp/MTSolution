@@ -4,38 +4,62 @@
       "vm1",
       "vm6",
       "vm9",
-      "vm15",
-      "vm18"
+      "vm14",
+      "vm19",
+      "vm23",
+      "vm29",
+      "vm31",
+      "vm35",
+      "vm39"
     ],
     "host2": [
       "vm2",
       "vm4",
       "vm7",
-      "vm10",
-      "vm12",
-      "vm16"
+      "vm11",
+      "vm13",
+      "vm15",
+      "vm17",
+      "vm21",
+      "vm25",
+      "vm27",
+      "vm32",
+      "vm37"
     ],
     "host3": [
       "vm3",
       "vm5",
       "vm8",
-      "vm11",
-      "vm13",
-      "vm14",
-      "vm17"
+      "vm10",
+      "vm12",
+      "vm16",
+      "vm18",
+      "vm20",
+      "vm22",
+      "vm24",
+      "vm26",
+      "vm28",
+      "vm30",
+      "vm33",
+      "vm36",
+      "vm38"
     ]
   },
   "allocation_failures": [],
-  "migrations": {},
   "host_utilizations": {
     "host1": {
-      "usage_percentage": 79.8828125
+      "usage_percentage": 67.05729166666667
     },
     "host2": {
-      "usage_percentage": 75.26041666666667
+      "usage_percentage": 65.16927083333333
     },
     "host3": {
-      "usage_percentage": 75.29296875
+      "usage_percentage": 65.83333333333333
     }
-  }
+  },
+  "underutilized_hosts": [
+    "host1",
+    "host2",
+    "host3"
+  ]
 }
