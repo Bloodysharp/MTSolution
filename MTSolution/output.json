@@ -24,7 +24,8 @@
       "vm25",
       "vm27",
       "vm32",
-      "vm37"
+      "vm37",
+      "vm40"
     ],
     "host3": [
       "vm3",
@@ -42,24 +43,29 @@
       "vm30",
       "vm33",
       "vm36",
-      "vm38"
+      "vm38",
+      "vm41"
     ]
   },
   "allocation_failures": [],
   "host_utilizations": {
     "host1": {
-      "usage_percentage": 67.05729166666667
+      "usage_percentage": 67.05729166666667,
+      "score": 5.3311140091050575
     },
     "host2": {
-      "usage_percentage": 65.16927083333333
+      "usage_percentage": 68.42447916666667,
+      "score": 5.7151967634246885
     },
     "host3": {
-      "usage_percentage": 65.83333333333333
+      "usage_percentage": 68.08974358974359,
+      "score": 5.618058396216902
     }
   },
   "underutilized_hosts": [
     "host1",
     "host2",
     "host3"
-  ]
+  ],
+  "migrations": []
 }
