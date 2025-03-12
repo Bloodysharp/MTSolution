@@ -11,20 +11,61 @@ class Program
     static Dictionary<string, string> vmPlacement = new();
     static List<Migration> migrations = new();
     static HashSet<string> activeVMs = new();
+    static Random random = new();
 
     static void Main()
     {
         while (true)
         {
-            ProcessNewRound();
-            Thread.Sleep(1000); // Ждём 1 секунду перед следующим раундом
+            GenerateNewVM(); // Добавляем новую VM каждый раунд
+            ProcessNewRound(); // Обрабатываем входные данные
+            Thread.Sleep(1000); // Ожидание 1 секунды перед новым раундом
         }
+    }
+
+    static void GenerateNewVM()
+    {
+        string filePath = "input.json";
+
+        if (!File.Exists(filePath))
+        {
+            Console.WriteLine("❌ Ошибка: файл input.json не найден!");
+            return;
+        }
+
+        string json = File.ReadAllText(filePath);
+        var data = JsonConvert.DeserializeObject<InputData>(json);
+
+        if (data == null)
+        {
+            Console.WriteLine("❌ Ошибка: не удалось разобрать input.json");
+            return;
+        }
+
+        // Генерируем новую VM
+        string newVmId = $"vm{data.VirtualMachines.Count + 1}";
+        var newVm = new Resource
+        {
+            Cpu = random.Next(1, 4),  // CPU от 1 до 3
+            Ram = random.Next(512, 4097)  // RAM от 512MB до 4GB
+        };
+
+        // Добавляем в список VM
+        data.VirtualMachines[newVmId] = newVm;
+
+        // Сохраняем обновленный JSON
+        string updatedJson = JsonConvert.SerializeObject(data, Formatting.Indented);
+        File.WriteAllText(filePath, updatedJson);
+
+        Console.WriteLine($"✅ Добавлена новая VM: {newVmId} (CPU: {newVm.Cpu}, RAM: {newVm.Ram})");
     }
 
     static void ProcessNewRound()
     {
-        if (!File.Exists("input.json")) return;
-        string input = File.ReadAllText("input.json").Trim();
+        string filePath = "input.json";
+        if (!File.Exists(filePath)) return;
+
+        string input = File.ReadAllText(filePath).Trim();
         var request = JsonConvert.DeserializeObject<InputData>(input);
         var response = new OutputData();
         var newVMs = request.VirtualMachines.Keys.ToHashSet();
@@ -128,10 +169,11 @@ class Program
     }
 }
 
+// Классы для JSON
 class InputData
 {
-    [JsonProperty("hosts")] public Dictionary<string, Resource> Hosts { get; set; }
-    [JsonProperty("virtual_machines")] public Dictionary<string, Resource> VirtualMachines { get; set; }
+    [JsonProperty("hosts")] public Dictionary<string, Resource> Hosts { get; set; } = new();
+    [JsonProperty("virtual_machines")] public Dictionary<string, Resource> VirtualMachines { get; set; } = new();
 }
 
 class OutputData
@@ -162,6 +204,8 @@ class Resource
     [JsonProperty("ram")] public int Ram { get; set; }
     public int CpuUsed { get; private set; } = 0;
     public int RamUsed { get; private set; } = 0;
+
+    public Resource() { }
 
     public Resource(int cpu, int ram)
     {
