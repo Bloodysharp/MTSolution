@@ -17,47 +17,26 @@ class Program
     {
         while (true)
         {
-            GenerateNewVM(); // Добавляем новую VM каждый раунд
-            ProcessNewRound(); // Обрабатываем входные данные
-            Thread.Sleep(1000); // Ожидание 1 секунды перед новым раундом
+            GenerateNewVM();
+            ProcessNewRound();
+            Thread.Sleep(1000);
         }
     }
 
     static void GenerateNewVM()
     {
         string filePath = "input.json";
-
-        if (!File.Exists(filePath))
-        {
-            Console.WriteLine("❌ Ошибка: файл input.json не найден!");
-            return;
-        }
+        if (!File.Exists(filePath)) return;
 
         string json = File.ReadAllText(filePath);
         var data = JsonConvert.DeserializeObject<InputData>(json);
+        if (data == null) return;
 
-        if (data == null)
-        {
-            Console.WriteLine("❌ Ошибка: не удалось разобрать input.json");
-            return;
-        }
-
-        // Генерируем новую VM
         string newVmId = $"vm{data.VirtualMachines.Count + 1}";
-        var newVm = new Resource
-        {
-            Cpu = random.Next(1, 4),  // CPU от 1 до 3
-            Ram = random.Next(512, 4097)  // RAM от 512MB до 4GB
-        };
+        var newVm = new Resource(random.Next(1, 4), random.Next(2, 6));
 
-        // Добавляем в список VM
         data.VirtualMachines[newVmId] = newVm;
-
-        // Сохраняем обновленный JSON
-        string updatedJson = JsonConvert.SerializeObject(data, Formatting.Indented);
-        File.WriteAllText(filePath, updatedJson);
-
-        Console.WriteLine($"✅ Добавлена новая VM: {newVmId} (CPU: {newVm.Cpu}, RAM: {newVm.Ram})");
+        File.WriteAllText(filePath, JsonConvert.SerializeObject(data, Formatting.Indented));
     }
 
     static void ProcessNewRound()
@@ -65,48 +44,43 @@ class Program
         string filePath = "input.json";
         if (!File.Exists(filePath)) return;
 
-        string input = File.ReadAllText(filePath).Trim();
+        string input = File.ReadAllText(filePath);
         var request = JsonConvert.DeserializeObject<InputData>(input);
         var response = new OutputData();
         var newVMs = request.VirtualMachines.Keys.ToHashSet();
 
-        // Инициализация хостов
         if (hostUsage.Count == 0)
         {
             hostUsage = request.Hosts.ToDictionary(h => h.Key, h => new Resource(h.Value.Cpu, h.Value.Ram));
         }
 
-        // Определяем удалённые ВМ
-        var removedVMs = activeVMs.Except(newVMs).ToList();
-        foreach (var vm in removedVMs)
+        // Удаление ВМ, которых больше нет в входных данных
+        foreach (var vm in activeVMs.Except(newVMs).ToList())
         {
-            if (vmPlacement.ContainsKey(vm))
+            if (vmPlacement.TryGetValue(vm, out string host))
             {
-                string host = vmPlacement[vm];
                 hostUsage[host].Deallocate(request.VirtualMachines[vm]);
                 vmPlacement.Remove(vm);
             }
             activeVMs.Remove(vm);
         }
 
-        // Определяем новые ВМ
-        var addedVMs = newVMs.Except(activeVMs).ToList();
-        foreach (var vm in addedVMs)
+        // Размещение новых ВМ
+        foreach (var vm in newVMs.Except(activeVMs))
         {
-            if (!PlaceVM(vm, request.VirtualMachines[vm]))
-            {
-                response.FailedPlacements.Add(vm);
-            }
-            else
+            if (PlaceVM(vm, request.VirtualMachines[vm]))
             {
                 activeVMs.Add(vm);
             }
+            else
+            {
+                MigrateAndPlace(vm, request.VirtualMachines[vm]);
+            }
         }
 
-        // Оптимизируем загрузку
         OptimizeLoad();
 
-        // Расчёт утилизации
+        // Заполнение информации о хостах
         foreach (var host in hostUsage)
         {
             double utilization = host.Value.TotalUsage;
@@ -115,7 +89,7 @@ class Program
                 UsagePercentage = utilization * 100,
                 Score = CalculateScore(utilization)
             };
-            if (utilization < 0.75) response.UnderutilizedHosts.Add(host.Key);
+            if (utilization < 75) response.UnderutilizedHosts.Add(host.Key);
         }
 
         response.Allocations = vmPlacement.GroupBy(kv => kv.Value)
@@ -123,8 +97,7 @@ class Program
         response.Migrations = migrations;
         migrations.Clear();
 
-        string output = JsonConvert.SerializeObject(response, Formatting.Indented);
-        File.WriteAllText("output.json", output);
+        File.WriteAllText("output.json", JsonConvert.SerializeObject(response, Formatting.Indented));
     }
 
     static bool PlaceVM(string vmId, Resource vm)
@@ -141,21 +114,53 @@ class Program
         return false;
     }
 
+    static void MigrateAndPlace(string vmId, Resource vm)
+    {
+        foreach (var host in hostUsage.OrderBy(h => h.Value.TotalUsage))
+        {
+            foreach (var existingVm in vmPlacement.Where(v => v.Value == host.Key).ToList())
+            {
+                string existingVmId = existingVm.Key;
+                Resource existingVmResource = hostUsage[existingVm.Value];
+
+                foreach (var targetHost in hostUsage.OrderBy(h => h.Value.TotalUsage))
+                {
+                    if (targetHost.Key != host.Key && targetHost.Value.CanHost(existingVmResource))
+                    {
+                        host.Value.Deallocate(existingVmResource);
+                        targetHost.Value.Allocate(existingVmResource);
+                        vmPlacement[existingVmId] = targetHost.Key;
+                        migrations.Add(new Migration(existingVmId, host.Key, targetHost.Key));
+
+                        if (host.Value.CanHost(vm))
+                        {
+                            host.Value.Allocate(vm);
+                            vmPlacement[vmId] = host.Key;
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     static void OptimizeLoad()
     {
         foreach (var host in hostUsage.Where(h => h.Value.TotalUsage > 0.8).ToList())
         {
-            var vmsToMigrate = vmPlacement.Where(v => v.Value == host.Key).ToList();
-            foreach (var vm in vmsToMigrate)
+            foreach (var vm in vmPlacement.Where(v => v.Value == host.Key).ToList())
             {
+                string vmId = vm.Key;
+                Resource vmResource = hostUsage[vmId];
+
                 foreach (var targetHost in hostUsage.OrderBy(h => h.Value.TotalUsage))
                 {
-                    if (targetHost.Key != host.Key && targetHost.Value.CanHost(hostUsage[vm.Key]))
+                    if (targetHost.Key != host.Key && targetHost.Value.CanHost(vmResource))
                     {
-                        host.Value.Deallocate(hostUsage[vm.Key]);
-                        targetHost.Value.Allocate(hostUsage[vm.Key]);
-                        vmPlacement[vm.Key] = targetHost.Key;
-                        migrations.Add(new Migration { Vm = vm.Key, From = host.Key, To = targetHost.Key });
+                        host.Value.Deallocate(vmResource);
+                        targetHost.Value.Allocate(vmResource);
+                        vmPlacement[vmId] = targetHost.Key;
+                        migrations.Add(new Migration(vmId, host.Key, targetHost.Key));
                         break;
                     }
                 }
@@ -169,43 +174,46 @@ class Program
     }
 }
 
-// Классы для JSON
 class InputData
 {
-    [JsonProperty("hosts")] public Dictionary<string, Resource> Hosts { get; set; } = new();
-    [JsonProperty("virtual_machines")] public Dictionary<string, Resource> VirtualMachines { get; set; } = new();
+    public Dictionary<string, Resource> Hosts { get; set; } = new();
+    public Dictionary<string, Resource> VirtualMachines { get; set; } = new();
 }
 
 class OutputData
 {
-    [JsonProperty("allocations")] public Dictionary<string, List<string>> Allocations { get; set; } = new();
-    [JsonProperty("allocation_failures")] public List<string> FailedPlacements { get; set; } = new();
-    [JsonProperty("host_utilizations")] public Dictionary<string, HostUtilization> HostUtilizations { get; set; } = new();
-    [JsonProperty("underutilized_hosts")] public List<string> UnderutilizedHosts { get; set; } = new();
-    [JsonProperty("migrations")] public List<Migration> Migrations { get; set; } = new();
+    public Dictionary<string, List<string>> Allocations { get; set; } = new();
+    public Dictionary<string, HostUtilization> HostUtilizations { get; set; } = new();
+    public List<string> UnderutilizedHosts { get; set; } = new();
+    public List<Migration> Migrations { get; set; } = new();
 }
 
 class HostUtilization
 {
-    [JsonProperty("usage_percentage")] public double UsagePercentage { get; set; }
-    [JsonProperty("score")] public double Score { get; set; }
+    public double UsagePercentage { get; set; }
+    public double Score { get; set; }
 }
 
 class Migration
 {
-    [JsonProperty("vm")] public string Vm { get; set; }
-    [JsonProperty("from")] public string From { get; set; }
-    [JsonProperty("to")] public string To { get; set; }
+    public string Vm { get; }
+    public string From { get; }
+    public string To { get; }
+
+    public Migration(string vm, string from, string to)
+    {
+        Vm = vm;
+        From = from;
+        To = to;
+    }
 }
 
 class Resource
 {
-    [JsonProperty("cpu")] public int Cpu { get; set; }
-    [JsonProperty("ram")] public int Ram { get; set; }
+    public int Cpu { get; }
+    public int Ram { get; }
     public int CpuUsed { get; private set; } = 0;
     public int RamUsed { get; private set; } = 0;
-
-    public Resource() { }
 
     public Resource(int cpu, int ram)
     {
@@ -214,15 +222,18 @@ class Resource
     }
 
     public bool CanHost(Resource vm) => CpuUsed + vm.Cpu <= Cpu && RamUsed + vm.Ram <= Ram;
+
     public void Allocate(Resource vm)
     {
         CpuUsed += vm.Cpu;
         RamUsed += vm.Ram;
     }
+
     public void Deallocate(Resource vm)
     {
         CpuUsed -= vm.Cpu;
         RamUsed -= vm.Ram;
     }
+
     public double TotalUsage => ((double)CpuUsed / Cpu + (double)RamUsed / Ram) / 2;
 }
