@@ -1961,6 +1961,69 @@
       "CpuUsed": 0,
       "RamUsed": 0,
       "TotalUsage": 0.0
+    },
+    "vm278": {
+      "Cpu": 3,
+      "Ram": 4,
+      "CpuUsed": 0,
+      "RamUsed": 0,
+      "TotalUsage": 0.0
+    },
+    "vm279": {
+      "Cpu": 2,
+      "Ram": 5,
+      "CpuUsed": 0,
+      "RamUsed": 0,
+      "TotalUsage": 0.0
+    },
+    "vm280": {
+      "Cpu": 3,
+      "Ram": 4,
+      "CpuUsed": 0,
+      "RamUsed": 0,
+      "TotalUsage": 0.0
+    },
+    "vm281": {
+      "Cpu": 2,
+      "Ram": 5,
+      "CpuUsed": 0,
+      "RamUsed": 0,
+      "TotalUsage": 0.0
+    },
+    "vm282": {
+      "Cpu": 2,
+      "Ram": 5,
+      "CpuUsed": 0,
+      "RamUsed": 0,
+      "TotalUsage": 0.0
+    },
+    "vm283": {
+      "Cpu": 1,
+      "Ram": 5,
+      "CpuUsed": 0,
+      "RamUsed": 0,
+      "TotalUsage": 0.0
+    },
+    "vm284": {
+      "Cpu": 1,
+      "Ram": 5,
+      "CpuUsed": 0,
+      "RamUsed": 0,
+      "TotalUsage": 0.0
+    },
+    "vm285": {
+      "Cpu": 1,
+      "Ram": 4,
+      "CpuUsed": 0,
+      "RamUsed": 0,
+      "TotalUsage": 0.0
+    },
+    "vm286": {
+      "Cpu": 2,
+      "Ram": 5,
+      "CpuUsed": 0,
+      "RamUsed": 0,
+      "TotalUsage": 0.0
     }
   }
 }
