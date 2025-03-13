@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,6 +11,7 @@ class Program
     static Dictionary<string, string> vmPlacement = new();
     static List<Migration> migrations = new();
     static HashSet<string> activeVMs = new();
+    static List<string> unplacedVMs = new();
     static Random random = new();
 
     static void Main()
@@ -65,6 +66,8 @@ class Program
             activeVMs.Remove(vm);
         }
 
+        unplacedVMs.Clear();
+
         // Размещение новых ВМ
         foreach (var vm in newVMs.Except(activeVMs))
         {
@@ -74,7 +77,10 @@ class Program
             }
             else
             {
-                MigrateAndPlace(vm, request.VirtualMachines[vm]);
+                if (!MigrateAndPlace(vm, request.VirtualMachines[vm]))
+                {
+                    unplacedVMs.Add(vm);
+                }
             }
         }
 
@@ -95,6 +101,7 @@ class Program
         response.Allocations = vmPlacement.GroupBy(kv => kv.Value)
                                           .ToDictionary(g => g.Key, g => g.Select(v => v.Key).ToList());
         response.Migrations = migrations;
+        response.FailedPlacements = unplacedVMs;
         migrations.Clear();
 
         File.WriteAllText("output.json", JsonConvert.SerializeObject(response, Formatting.Indented));
@@ -114,7 +121,7 @@ class Program
         return false;
     }
 
-    static void MigrateAndPlace(string vmId, Resource vm)
+    static bool MigrateAndPlace(string vmId, Resource vm)
     {
         foreach (var host in hostUsage.OrderBy(h => h.Value.TotalUsage))
         {
@@ -136,12 +143,13 @@ class Program
                         {
                             host.Value.Allocate(vm);
                             vmPlacement[vmId] = host.Key;
-                            return;
+                            return true;
                         }
                     }
                 }
             }
         }
+        return false;
     }
 
     static void OptimizeLoad()
@@ -186,6 +194,7 @@ class OutputData
     public Dictionary<string, HostUtilization> HostUtilizations { get; set; } = new();
     public List<string> UnderutilizedHosts { get; set; } = new();
     public List<Migration> Migrations { get; set; } = new();
+    public List<string> FailedPlacements { get; set; } = new(); // Добавлено
 }
 
 class HostUtilization
